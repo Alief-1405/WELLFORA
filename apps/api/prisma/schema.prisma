@@ -1,0 +1,239 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  EMPLOYEE
+  HR_ADMIN
+  PSYCHOLOGIST
+  LEGAL_COUNSEL
+  SUPER_ADMIN
+}
+
+enum LeaveType {
+  CUTI
+  SAKIT
+  DINAS
+}
+
+enum LeaveStatus {
+  PENDING
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum LegalCategory {
+  PELECEHAN_SEKSUAL
+  KEKERASAN_INTIMIDASI
+  PELANGGARAN_HUKUM_KERJA
+  DISKRIMINASI
+  LAINNYA
+}
+
+enum LegalStatus {
+  SUBMITTED
+  IN_REVIEW
+  INVESTIGATION
+  MEDIATION
+  RESOLVED
+  CLOSED
+}
+
+enum EmployeeAccountRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id                   String                @id @default(cuid())
+  email                String                @unique
+  name                 String
+  passwordHash         String
+  role                 Role                  @default(EMPLOYEE)
+  department           String?               @default("Operasional")
+  position             String?               @default("Karyawan")
+  phone                String?               @unique
+  isActive             Boolean               @default(true)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  loginOtps            LoginOtp[]
+  moods                MoodEntry[]
+  assessments          AssessmentResult[]
+  leaveRequests        LeaveRequest[]
+  employeeBookings     ConsultationBooking[] @relation("EmployeeBookings")
+  psychologistBookings ConsultationBooking[] @relation("PsychologistBookings")
+  submittedComplaints  LegalComplaint[]      @relation("EmployeeComplaints")
+  handledComplaints    LegalComplaint[]      @relation("CounselComplaints")
+  practiceSlots        PracticeSlot[]
+  forumPosts           ForumPost[]
+  employeeAccountRequestsSubmitted EmployeeAccountRequest[] @relation("EmployeeAccountRequestSubmitter")
+  employeeAccountRequestsReviewed  EmployeeAccountRequest[] @relation("EmployeeAccountRequestReviewer")
+  createdAccountRequest            EmployeeAccountRequest?  @relation("EmployeeAccountRequestCreatedUser")
+
+  @@index([role, isActive])
+}
+
+model EmployeeAccountRequest {
+  id             String                       @id @default(cuid())
+  name           String
+  phone          String
+  department     String
+  position       String
+  notes          String?                      @db.VarChar(1000)
+  status         EmployeeAccountRequestStatus @default(PENDING)
+  rejectionReason String?                     @db.VarChar(1000)
+  requestedById  String
+  reviewedById   String?
+  createdUserId  String?                      @unique
+  reviewedAt     DateTime?
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+  requestedBy    User                         @relation("EmployeeAccountRequestSubmitter", fields: [requestedById], references: [id], onDelete: Restrict)
+  reviewedBy     User?                        @relation("EmployeeAccountRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  createdUser    User?                        @relation("EmployeeAccountRequestCreatedUser", fields: [createdUserId], references: [id], onDelete: SetNull)
+
+  @@index([requestedById, status, createdAt])
+  @@index([status, createdAt])
+  @@index([phone, status])
+}
+
+model LoginOtp {
+  id        String   @id @default(cuid())
+  userId    String
+  otpHash   String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model MoodEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  mood      Int
+  note      String?  @db.VarChar(500)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model AssessmentResult {
+  id         String   @id @default(cuid())
+  userId     String
+  depression Int
+  anxiety    Int
+  stress     Int
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model LeaveRequest {
+  id           String      @id @default(cuid())
+  userId       String
+  type         LeaveType
+  startDate    DateTime
+  endDate      DateTime
+  daysCount    Int         @default(1)
+  reason       String      @db.VarChar(1000)
+  attachmentUrl String?
+  status       LeaveStatus @default(PENDING)
+  hrNotes      String?     @db.VarChar(1000)
+  reviewedBy   String?
+  reviewedAt   DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+}
+
+model PracticeSlot {
+  id             String   @id @default(cuid())
+  psychologistId String
+  day            String
+  time           String
+  isAvailable    Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  psychologist   User     @relation(fields: [psychologistId], references: [id], onDelete: Cascade)
+
+  @@index([psychologistId, isAvailable])
+  @@unique([psychologistId, day, time])
+}
+
+model ConsultationBooking {
+  id             String        @id @default(cuid())
+  employeeId     String
+  psychologistId String
+  scheduledAt    DateTime
+  notes          String?       @db.VarChar(1000)
+  status         BookingStatus @default(PENDING)
+  clinicalNotes  String?       @db.VarChar(2000)
+  actionPlan     String?       @db.VarChar(1000)
+  counselingUrl  String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  employee       User          @relation("EmployeeBookings", fields: [employeeId], references: [id], onDelete: Cascade)
+  psychologist   User          @relation("PsychologistBookings", fields: [psychologistId], references: [id], onDelete: Restrict)
+
+  @@index([psychologistId, scheduledAt, status])
+  @@index([employeeId, scheduledAt])
+}
+
+model LegalComplaint {
+  id                 String        @id @default(cuid())
+  ticketNumber       String        @unique
+  userId             String
+  counselId          String?
+  category           LegalCategory
+  title              String        @db.VarChar(255)
+  description        String        @db.VarChar(3000)
+  incidentDate       DateTime
+  location           String?       @db.VarChar(255)
+  isAnonymous        Boolean       @default(false)
+  evidenceInfo       String?       @db.VarChar(1000)
+  status             LegalStatus   @default(SUBMITTED)
+  legalNotes         String?       @db.VarChar(2000)
+  investigationNotes String?       @db.VarChar(2000)
+  mediationNotes     String?       @db.VarChar(2000)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  employee           User          @relation("EmployeeComplaints", fields: [userId], references: [id], onDelete: Cascade)
+  counsel            User?         @relation("CounselComplaints", fields: [counselId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status])
+  @@index([counselId, status])
+  @@index([status, createdAt])
+}
+
+model ForumPost {
+  id          String   @id @default(cuid())
+  userId      String
+  pseudonymId String
+  body        String   @db.VarChar(2000)
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+}
