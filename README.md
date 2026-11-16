@@ -91,7 +91,7 @@ npm --prefix apps/web install
 npm --prefix apps/api install
 ```
 
-Salin `apps/api/.env.example` menjadi `apps/api/.env`, lalu isi URL database dan `JWT_SECRET` acak minimal 32 karakter. Untuk frontend, atur `NEXT_PUBLIC_API_URL` pada `apps/web/.env.local`. Pendaftaran mandiri tidak tersedia; permohonan akun karyawan dilakukan oleh HRD setelah login.
+Salin `apps/api/.env.example` menjadi `apps/api/.env`, lalu isi URL database dan `JWT_SECRET` acak minimal 32 karakter. Frontend lokal secara default memakai API di `http://localhost:4000/api`; atur `NEXT_PUBLIC_API_URL` pada `apps/web/.env.local` hanya jika ingin mengganti alamat tersebut. Pendaftaran mandiri tidak tersedia; permohonan akun karyawan dilakukan oleh HRD setelah login.
 
 ### 2. Sinkronisasi Skema Database (pengembangan lokal saja)
 ```bash
@@ -111,7 +111,13 @@ npm run dev
 ### Production
 
 - Gunakan rahasia unik dari secret manager untuk `JWT_SECRET`; jangan gunakan nilai contoh.
-- Tetapkan `NODE_ENV=production`, `WEB_ORIGIN` HTTPS yang tepat, `DIRECT_URL`, dan URL API HTTPS untuk build frontend. Pendaftaran mandiri dinonaktifkan; gunakan alur permohonan HRD dan persetujuan Superadmin.
+- Pendaftaran mandiri dinonaktifkan; gunakan alur permohonan HRD dan persetujuan Superadmin.
+- Deployment Vercel menggunakan dua project dari repository yang sama agar frontend dan API memakai platform yang sama:
+  1. Project API: Root Directory `apps/api`, framework Express, build command `npm run build`. `src/index.ts` mengekspor Express app untuk Vercel Functions; `src/server.ts` hanya untuk menjalankan server lokal.
+  2. Project web: Root Directory `apps/web`, framework Next.js. Atur `API_BACKEND_ORIGIN` ke origin HTTPS project API Vercel tanpa path atau garis miring di akhir. Frontend memakai `/api` sebagai URL same-origin dan Next.js meneruskan request ke project API.
+  3. Pada project API, atur `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, dan `WEB_ORIGIN` ke origin HTTPS project web tanpa path atau garis miring di akhir. Jangan menaruh credential di repository atau di variabel `NEXT_PUBLIC_*`.
+  4. Deploy API lebih dahulu, masukkan URL project API ke `API_BACKEND_ORIGIN` di project web, lalu deploy web. Periksa `https://<domain-api>/api/health`.
+- Proxy same-origin membuat cookie sesi tetap HttpOnly, Secure, dan SameSite=Lax tanpa menghapus autentikasi. Login saat ini memakai nomor telepon dan password; OTP tidak digunakan oleh alur login.
 - Untuk database production baru, tinjau migration SQL di `apps/api/prisma/migrations`, backup database, lalu jalankan `npm --prefix apps/api run db:migrate:deploy`. Database yang sebelumnya dibuat dengan `db:push` harus dibaseline dengan hati-hati sebelum memakai migration deploy.
 - Migration `20261117120000_employee_account_requests` hanya menambahkan tabel permohonan dan tidak menghapus/mengubah data akun yang sudah ada. Jangan jalankan migration di production sebelum backup terverifikasi dan status baseline migration lama dipastikan; database production yang belum memiliki riwayat Prisma perlu ditangani secara terpisah.
 - Jangan gunakan `db:push` atau seed untuk deployment production. `db:push` dan seed ditolak saat `NODE_ENV=production`.
