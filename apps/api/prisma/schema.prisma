@@ -103,6 +103,7 @@ model EmployeeAccountRequest {
   position       String
   notes          String?                      @db.VarChar(1000)
   status         EmployeeAccountRequestStatus @default(PENDING)
+  approvedRole   Role?
   rejectionReason String?                     @db.VarChar(1000)
   requestedById  String
   reviewedById   String?

@@ -67,7 +67,7 @@ Untuk menguji akun yang sudah dibuat:
 - Akun seed memakai nomor `081234567890` (karyawan), `081298765432` (HRD), `081311223344` (psikolog), `081355667788` (legal), atau `081122334455` (superadmin). Password semua akun seed adalah nilai `SEED_DEMO_PASSWORD` yang dipakai saat seeding.
 - Tombol **Akses Instan** hanya tersedia di development.
 - HRD mengajukan data calon karyawan dan divisinya; permohonan harus disetujui Superadmin sebelum akun dapat digunakan.
-- Saat menyetujui permohonan, Superadmin menyetujui pembuatan akun ber-role Karyawan. HRD membagikan tautan aktivasi sekali pakai yang berlaku 24 jam; karyawan menetapkan password minimal 12 karakter sendiri. HRD tidak dapat melihat atau mengubah password.
+- Saat meninjau permohonan, Superadmin memilih role sesuai divisi dan jabatan (Karyawan, HRD, Psikolog, atau Legal). Role Superadmin tidak dapat diberikan melalui permohonan HRD. Setelah disetujui, HRD membagikan tautan aktivasi sekali pakai yang berlaku 24 jam; karyawan menetapkan password minimal 12 karakter sendiri, yang tidak dapat dilihat atau diubah HRD.
 - Superadmin tetap dapat membuat akun manual, mengatur nomor telepon/password, serta menentukan role pengguna.
 
 Pendaftaran mandiri dinonaktifkan. Untuk akun karyawan baru, hubungi HRD perusahaan.
@@ -117,6 +117,7 @@ npm run dev
 - Pembatasan laju API dalam proses Next.js bersifat per-instance. Untuk perlindungan konsisten lintas serverless instances, aktifkan rate limiting terdistribusi melalui layanan edge/Vercel Firewall sebelum membuka deployment ke trafik publik.
 - Untuk database production baru, tinjau migration SQL di `apps/api/prisma/migrations`, backup database, lalu jalankan `npm --prefix apps/api run db:migrate:deploy`. Database yang sebelumnya dibuat dengan `db:push` harus dibaseline dengan hati-hati sebelum memakai migration deploy.
 - Migration `20261117120000_employee_account_requests` hanya menambahkan tabel permohonan dan tidak menghapus/mengubah data akun yang sudah ada. Jangan jalankan migration di production sebelum backup terverifikasi dan status baseline migration lama dipastikan; database production yang belum memiliki riwayat Prisma perlu ditangani secara terpisah.
+- Migration `20261117143000_account_request_approved_role` menambahkan kolom role nullable untuk menyimpan hak akses yang dipilih Superadmin. Terapkan bersama migration lain setelah status baseline database production diverifikasi.
 - Jangan gunakan `db:push` atau seed untuk deployment production. `db:push` dan seed ditolak saat `NODE_ENV=production`.
 - Jangan memasukkan kredensial nyata ke `.env.example`, source control, log, atau chat. Jika pernah terpapar, rotasi kredensial.
 - Pastikan domain memakai HTTPS dan uji login dengan akun untuk setiap role sebelum membuka akses pengguna.

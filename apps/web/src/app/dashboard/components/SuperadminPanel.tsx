@@ -38,6 +38,7 @@ type EmployeeAccountRequest = {
   notes: string | null;
   status: "PENDING" | "APPROVED" | "REJECTED";
   rejectionReason: string | null;
+  approvedRole: Role | null;
   createdAt: string;
   reviewedAt: string | null;
   requestedBy: { id: string; name: string };
@@ -54,6 +55,7 @@ export default function SuperadminPanel() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<EmployeeAccountRequest | null>(null);
+  const [requestRole, setRequestRole] = useState<Role | "">("");
   const [rejectionReason, setRejectionReason] = useState("");
   const [modalType, setModalType] = useState<"ROLE" | "CREATE" | "LOGIN" | null>(null);
 
@@ -99,9 +101,19 @@ export default function SuperadminPanel() {
 
   async function handleAccountRequestDecision(decision: "APPROVED" | "REJECTED") {
     if (!selectedRequest) return;
-    if (decision === "REJECTED" && rejectionReason.trim().length < 5) {
-      alert("Alasan penolakan minimal 5 karakter.");
-      return;
+    let payload: { decision: "APPROVED"; role: Role } | { decision: "REJECTED"; rejectionReason: string };
+    if (decision === "APPROVED") {
+      if (!requestRole) {
+        alert("Pilih hak akses berdasarkan divisi dan jabatan.");
+        return;
+      }
+      payload = { decision, role: requestRole };
+    } else {
+      if (rejectionReason.trim().length < 5) {
+        alert("Alasan penolakan minimal 5 karakter.");
+        return;
+      }
+      payload = { decision, rejectionReason };
     }
 
     setLoading(true);
@@ -110,9 +122,7 @@ export default function SuperadminPanel() {
         `/account-requests/${selectedRequest.id}/decision`,
         {
           method: "PATCH",
-          body: JSON.stringify(
-            decision === "APPROVED" ? { decision } : { decision, rejectionReason }
-          )
+          body: JSON.stringify(payload)
         }
       );
       setMessage(response.message);
@@ -325,9 +335,14 @@ export default function SuperadminPanel() {
                       {request.status === "PENDING" ? "Menunggu" : request.status === "APPROVED" ? "Disetujui" : "Ditolak"}
                     </span>
                     {request.createdUser ? (
-                      <div className="mt-1 text-[10px] text-[#3D6953]">Akun aktif: {request.createdUser.name}</div>
+                      <div className="mt-1 text-[10px] text-[#3D6953]">
+                        Akun aktif: {request.createdUser.name} · {ROLE_LABELS[request.createdUser.role].title}
+                      </div>
                     ) : request.status === "APPROVED" ? (
-                      <div className="mt-1 text-[10px] text-[#71857B]">Menunggu aktivasi oleh karyawan.</div>
+                      <div className="mt-1 text-[10px] text-[#71857B]">
+                        {request.approvedRole ? `Akses: ${ROLE_LABELS[request.approvedRole].title}. ` : ""}
+                        Menunggu aktivasi oleh karyawan.
+                      </div>
                     ) : null}
                     {request.rejectionReason && <div className="mt-1 text-[10px] text-red-700">{request.rejectionReason}</div>}
                   </td>
@@ -337,6 +352,7 @@ export default function SuperadminPanel() {
                         type="button"
                         onClick={() => {
                           setSelectedRequest(request);
+                          setRequestRole("");
                           setRejectionReason("");
                         }}
                         className="px-3 py-1.5 rounded-lg bg-[#EAF0EC] hover:bg-[#294D3F] hover:text-white text-[#294D3F] font-bold text-[11px] transition-all"
@@ -739,7 +755,25 @@ export default function SuperadminPanel() {
             )}
 
             <div className="p-3 rounded-xl bg-[#EAF0EC] text-[11px] text-[#294D3F]">
-              Jika disetujui, HRD dapat membagikan tautan aktivasi kepada karyawan. Karyawan akan membuat password sendiri; password tidak dapat dilihat atau diubah oleh HRD.
+              Pilih hak akses berdasarkan divisi dan jabatan yang diajukan. Jika disetujui, HRD membagikan tautan aktivasi dan karyawan membuat password sendiri. Role Superadmin hanya dapat diberikan melalui pengelolaan akun manual.
+            </div>
+
+            <div>
+              <label htmlFor="request-role" className="mb-1 block text-xs font-bold text-[#294D3F]">
+                Hak akses setelah aktivasi
+              </label>
+              <select
+                id="request-role"
+                value={requestRole}
+                onChange={(event) => setRequestRole(event.target.value as Role | "")}
+                className="w-full rounded-xl border border-[#CBD5CD] bg-white px-3 py-2 text-xs focus:border-[#294D3F] focus:outline-none"
+              >
+                <option value="" disabled>Pilih hak akses sesuai divisi</option>
+                <option value="EMPLOYEE">{ROLE_LABELS.EMPLOYEE.title}</option>
+                <option value="HR_ADMIN">{ROLE_LABELS.HR_ADMIN.title}</option>
+                <option value="PSYCHOLOGIST">{ROLE_LABELS.PSYCHOLOGIST.title}</option>
+                <option value="LEGAL_COUNSEL">{ROLE_LABELS.LEGAL_COUNSEL.title}</option>
+              </select>
             </div>
 
             <div>
@@ -756,7 +790,7 @@ export default function SuperadminPanel() {
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
-                disabled={loading}
+                disabled={loading || !requestRole}
                 onClick={() => void handleAccountRequestDecision("APPROVED")}
                 className="py-2.5 rounded-xl bg-emerald-700 text-white font-bold text-xs shadow hover:bg-emerald-800 disabled:opacity-50"
               >

@@ -107,7 +107,10 @@ export async function accountRequestRoutes(
   if (parts.length === 3 && parts[2] === "decision" && request.method === "PATCH") {
     allowRoles(user, Role.SUPER_ADMIN);
     const input = z.discriminatedUnion("decision", [
-      z.object({ decision: z.literal("APPROVED") }),
+      z.object({
+        decision: z.literal("APPROVED"),
+        role: z.enum([Role.EMPLOYEE, Role.HR_ADMIN, Role.PSYCHOLOGIST, Role.LEGAL_COUNSEL])
+      }),
       z.object({
         decision: z.literal("REJECTED"),
         rejectionReason: z.string().trim().min(5).max(1000)
@@ -139,6 +142,7 @@ export async function accountRequestRoutes(
           where: { id: requestId, status: EmployeeAccountRequestStatus.PENDING },
           data: {
             status: input.decision,
+            approvedRole: input.decision === "APPROVED" ? input.role : null,
             reviewedById: user.id,
             reviewedAt,
             rejectionReason: input.decision === "REJECTED" ? input.rejectionReason : null

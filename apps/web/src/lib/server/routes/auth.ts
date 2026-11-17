@@ -65,7 +65,7 @@ export async function authRoutes(request: NextRequest, parts: string[], user?: A
             email,
             phone: accountRequest.phone,
             passwordHash,
-            role: Role.EMPLOYEE,
+            role: accountRequest.approvedRole ?? Role.EMPLOYEE,
             department: accountRequest.department,
             position: accountRequest.position,
             isActive: true

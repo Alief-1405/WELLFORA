@@ -5,7 +5,7 @@ import {
   CheckCircle2, Copy, X, XCircle
 } from "lucide-react";
 import { apiRequest } from "@/lib/api";
-import { WellforaUser } from "@/lib/session";
+import { ROLE_LABELS, type Role, type WellforaUser } from "@/lib/session";
 import PdfDownloadButton from "./PdfDownloadButton";
 
 type Props = {
@@ -52,10 +52,11 @@ type EmployeeAccountRequest = {
   notes: string | null;
   status: "PENDING" | "APPROVED" | "REJECTED";
   rejectionReason: string | null;
+  approvedRole: Role | null;
   createdAt: string;
   reviewedAt: string | null;
   reviewedBy: { id: string; name: string } | null;
-  createdUser: { id: string; name: string; role: string } | null;
+  createdUser: { id: string; name: string; role: Role } | null;
 };
 
 async function fetchLeaves(statusFilter: string) {
@@ -272,7 +273,7 @@ export default function HrPanel({ user }: Props) {
           <div>
             <h3 className="text-lg font-bold text-[#1E392F]">Permohonan Akun Karyawan Baru</h3>
             <p className="text-xs text-[#5D7369] mt-1">
-              Setelah disetujui Superadmin, HRD dapat membagikan tautan aktivasi. Karyawan menetapkan password sendiri; HRD tidak dapat melihat atau mengubah password.
+              Superadmin menetapkan hak akses berdasarkan divisi dan jabatan. Setelah disetujui, HRD membagikan tautan aktivasi agar karyawan membuat password sendiri; HRD tidak dapat melihat atau mengubah password.
             </p>
           </div>
           <button
@@ -385,10 +386,14 @@ export default function HrPanel({ user }: Props) {
                       {request.status === "PENDING" ? "Menunggu Superadmin" : request.status === "APPROVED" ? "Disetujui" : "Ditolak"}
                     </span>
                     {request.createdUser ? (
-                      <div className="mt-1 text-[10px] text-[#3D6953]">Akun {request.createdUser.name} sudah aktif.</div>
+                      <div className="mt-1 text-[10px] text-[#3D6953]">
+                        Akun {request.createdUser.name} aktif dengan akses {ROLE_LABELS[request.createdUser.role].title}.
+                      </div>
                     ) : request.status === "APPROVED" ? (
                       <div className="mt-2 space-y-2">
-                        <div className="text-[10px] text-[#71857B]">Menunggu karyawan mengaktifkan akun.</div>
+                        <div className="text-[10px] text-[#71857B]">
+                          Hak akses: {request.approvedRole ? ROLE_LABELS[request.approvedRole].title : "Karyawan"}. Menunggu aktivasi karyawan.
+                        </div>
                         <button
                           type="button"
                           disabled={activationLinkLoading === request.id}
