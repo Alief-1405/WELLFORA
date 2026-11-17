@@ -4,7 +4,7 @@ const nextConfig = {
     root: process.cwd(),
   },
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || '/api',
+    NEXT_PUBLIC_API_URL: '/api',
   },
   eslint: {
     ignoreDuringBuilds: true,
