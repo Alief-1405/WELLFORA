@@ -91,8 +91,8 @@ button { font: inherit; }
 .support-icon.warm { color: #947759; background: #f7f0e5; }
 .privacy-line { margin-top: 16px; display: flex; align-items: center; gap: 7px; color: #8a968e; font-size: 9px; }
 .mobile-menu { display: none; }
-.auth-page { min-height: 100vh; display: grid; grid-template-columns: minmax(320px, .92fr) 1.08fr; background: #fff; }
-.auth-aside { position: relative; display: flex; flex-direction: column; justify-content: space-between; padding: 38px 52px; overflow: hidden; color: #fff; background: #315746; }
+.auth-page { min-height: 100vh; display: grid; grid-template-columns: minmax(320px, .92fr) minmax(0, 1.08fr); background: #fff; }
+.auth-aside { position: relative; display: flex; flex-direction: column; justify-content: space-between; min-width: 0; padding: 38px 52px; overflow: hidden; color: #fff; background: #315746; }
 .auth-aside:after { content: ''; position: absolute; width: 420px; height: 420px; left: -150px; bottom: -180px; border: 1px solid rgba(255,255,255,.15); border-radius: 50%; box-shadow: 0 0 0 38px rgba(255,255,255,.04), 0 0 0 80px rgba(255,255,255,.025); }
 .auth-brand { position: relative; z-index: 1; color: white; text-decoration: none; }
 .auth-brand .brand-mark { color: #315746; background: #edf4ed; }
@@ -100,7 +100,7 @@ button { font: inherit; }
 .auth-message h1 { max-width: 420px; margin: 15px 0 12px; font-size: 36px; line-height: 1.2; }
 .auth-message p { max-width: 360px; color: #d1dfd5; font-size: 13px; line-height: 1.7; }
 .auth-aside-foot { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; color: #d0ded4; font-size: 11px; }
-.auth-main { display: grid; place-items: center; padding: 45px 24px; }
+.auth-main { display: grid; place-items: center; min-width: 0; padding: 45px 24px; }
 .auth-form-wrap { width: min(100%, 390px); }
 .back-link { display: inline-flex; align-items: center; gap: 7px; color: #7c8981; font-size: 11px; text-decoration: none; }
 .auth-icon { width: 40px; height: 40px; display: grid; place-items: center; margin-top: 40px; border-radius: 10px; color: #4a7159; background: #edf4ed; }

@@ -68,9 +68,9 @@ function LoginForm() {
   }
 
   return (
-    <main className="auth-page min-h-screen bg-[#FBF9F5] flex flex-col md:flex-row">
+    <main className="auth-page min-h-screen bg-[#FBF9F5]">
       {/* Left Aside */}
-      <section className="auth-aside md:w-5/12 bg-[#294D3F] text-white p-8 md:p-12 flex flex-col justify-between">
+      <section className="auth-aside bg-[#294D3F] text-white">
         <Link href="/" className="flex items-center gap-2 font-extrabold text-xl tracking-tight text-white">
           <span className="w-9 h-9 rounded-xl bg-white/20 text-white flex items-center justify-center">
             <Sparkles size={20} />
@@ -101,7 +101,7 @@ function LoginForm() {
       </section>
 
       {/* Right Main Form */}
-      <section className="auth-main flex-1 p-6 md:p-12 flex items-center justify-center">
+      <section className="auth-main">
         <div className="w-full max-w-md space-y-6">
           <Link href="/" className="inline-flex items-center gap-2 text-xs font-semibold text-[#5A6F66] hover:text-[#294D3F]">
             <ArrowLeft size={14} /> Kembali ke Beranda
