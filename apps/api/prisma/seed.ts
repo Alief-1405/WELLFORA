@@ -24,6 +24,7 @@ async function main() {
   const employee = await prisma.user.upsert({
     where: { email: "karyawan@wellfora.com" },
     update: {
+      passwordHash,
       name: "Budi Santoso",
       role: Role.EMPLOYEE,
       department: "Teknologi Informasi",
@@ -46,6 +47,7 @@ async function main() {
   const hrd = await prisma.user.upsert({
     where: { email: "hrd@wellfora.com" },
     update: {
+      passwordHash,
       name: "Siti Rahmawati, S.Psi",
       role: Role.HR_ADMIN,
       department: "Human Resources",
@@ -68,6 +70,7 @@ async function main() {
   const psychologist = await prisma.user.upsert({
     where: { email: "psikolog@wellfora.com" },
     update: {
+      passwordHash,
       name: "dr. Andini Putri, M.Psi., Psikolog",
       role: Role.PSYCHOLOGIST,
       department: "Layanan Konseling & EAP",
@@ -90,6 +93,7 @@ async function main() {
   const legal = await prisma.user.upsert({
     where: { email: "legal@wellfora.com" },
     update: {
+      passwordHash,
       name: "Fajar Prasetyo, S.H., M.H.",
       role: Role.LEGAL_COUNSEL,
       department: "Divisi Hukum & Kepatuhan",
@@ -112,6 +116,7 @@ async function main() {
   const admin = await prisma.user.upsert({
     where: { email: "admin@wellfora.com" },
     update: {
+      passwordHash,
       name: "Super Admin Wellfora",
       role: Role.SUPER_ADMIN,
       department: "IT & System Administration",
@@ -135,6 +140,7 @@ async function main() {
   await prisma.user.upsert({
     where: { email: "doni.resign@wellfora.com" },
     update: {
+      passwordHash,
       name: "Doni Pratama (Resign)",
       role: Role.EMPLOYEE,
       department: "Marketing",

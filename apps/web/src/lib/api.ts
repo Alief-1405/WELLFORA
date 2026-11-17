@@ -1,4 +1,4 @@
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "/api";
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = path.startsWith("http") ? path : `${apiUrl}${path}`;
