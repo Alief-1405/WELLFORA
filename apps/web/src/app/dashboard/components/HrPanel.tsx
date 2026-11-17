@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, type FormEvent } from "react";
 import {
-  CheckCircle2, X, XCircle
+  CheckCircle2, Copy, X, XCircle
 } from "lucide-react";
 import { apiRequest } from "@/lib/api";
 import { WellforaUser } from "@/lib/session";
@@ -82,6 +82,8 @@ export default function HrPanel({ user }: Props) {
   const [requestDepartment, setRequestDepartment] = useState("");
   const [requestPosition, setRequestPosition] = useState("");
   const [requestNotes, setRequestNotes] = useState("");
+  const [activationLinks, setActivationLinks] = useState<Record<string, string>>({});
+  const [activationLinkLoading, setActivationLinkLoading] = useState<string | null>(null);
 
   const loadLeaves = useCallback(async () => {
     try {
@@ -103,6 +105,32 @@ export default function HrPanel({ user }: Props) {
       setLoadError(err instanceof Error ? err.message : "Gagal memuat permohonan akun.");
     }
   }, []);
+
+  async function showActivationLink(requestId: string) {
+    setActivationLinkLoading(requestId);
+    setLoadError("");
+    try {
+      const response = await apiRequest<{ activationUrl: string }>(
+        `/account-requests/${requestId}/activation-link`
+      );
+      setActivationLinks((current) => ({ ...current, [requestId]: response.activationUrl }));
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Gagal membuat tautan aktivasi.");
+    } finally {
+      setActivationLinkLoading(null);
+    }
+  }
+
+  async function copyActivationLink(requestId: string) {
+    const activationUrl = activationLinks[requestId];
+    if (!activationUrl) return;
+    try {
+      await navigator.clipboard.writeText(activationUrl);
+      setMessage("Tautan aktivasi berhasil disalin. Bagikan hanya kepada karyawan terkait.");
+    } catch {
+      setLoadError("Tautan tidak dapat disalin otomatis. Salin tautan yang tampil secara manual.");
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -240,12 +268,20 @@ export default function HrPanel({ user }: Props) {
       )}
 
       <section className="bg-white rounded-2xl p-6 border border-[#E8ECE6] shadow-sm space-y-5">
-        <div>
-          <h3 className="text-lg font-bold text-[#1E392F]">Permohonan Akun Karyawan Baru</h3>
-          <p className="text-xs text-[#5D7369] mt-1">
-            HRD mengajukan data karyawan dan divisinya. Akun belum dapat digunakan sampai disetujui Superadmin.
-            Role akses tetap Karyawan; password awal ditetapkan Superadmin saat persetujuan.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-bold text-[#1E392F]">Permohonan Akun Karyawan Baru</h3>
+            <p className="text-xs text-[#5D7369] mt-1">
+              Setelah disetujui Superadmin, HRD dapat membagikan tautan aktivasi. Karyawan menetapkan password sendiri; HRD tidak dapat melihat atau mengubah password.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void loadAccountRequests()}
+            className="shrink-0 px-3 py-2 rounded-xl border border-[#CBD5CD] text-xs font-bold text-[#294D3F] hover:bg-[#F2F6F3]"
+          >
+            Perbarui status
+          </button>
         </div>
 
         <form onSubmit={handleAccountRequest} className="grid gap-3 sm:grid-cols-2 text-xs">
@@ -348,7 +384,40 @@ export default function HrPanel({ user }: Props) {
                     <span className={`font-bold px-2 py-0.5 rounded-full text-[10px] ${request.status === "APPROVED" ? "bg-emerald-100 text-emerald-800" : request.status === "REJECTED" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"}`}>
                       {request.status === "PENDING" ? "Menunggu Superadmin" : request.status === "APPROVED" ? "Disetujui" : "Ditolak"}
                     </span>
-                    {request.createdUser && <div className="mt-1 text-[10px] text-[#3D6953]">Akun dibuat untuk {request.createdUser.name}</div>}
+                    {request.createdUser ? (
+                      <div className="mt-1 text-[10px] text-[#3D6953]">Akun {request.createdUser.name} sudah aktif.</div>
+                    ) : request.status === "APPROVED" ? (
+                      <div className="mt-2 space-y-2">
+                        <div className="text-[10px] text-[#71857B]">Menunggu karyawan mengaktifkan akun.</div>
+                        <button
+                          type="button"
+                          disabled={activationLinkLoading === request.id}
+                          onClick={() => void showActivationLink(request.id)}
+                          className="px-2.5 py-1.5 rounded-lg bg-[#EAF0EC] text-[#294D3F] font-bold text-[10px] hover:bg-[#DCE8DF] disabled:opacity-50"
+                        >
+                          {activationLinkLoading === request.id ? "Menyiapkan..." : "Tampilkan tautan aktivasi"}
+                        </button>
+                        {activationLinks[request.id] && (
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              aria-label={`Tautan aktivasi untuk ${request.name}`}
+                              readOnly
+                              value={activationLinks[request.id]}
+                              className="min-w-0 w-48 px-2 py-1 rounded border border-[#CBD5CD] text-[10px]"
+                            />
+                            <button
+                              type="button"
+                              aria-label="Salin tautan aktivasi"
+                              onClick={() => void copyActivationLink(request.id)}
+                              className="p-1.5 rounded border border-[#CBD5CD] text-[#294D3F] hover:bg-[#F2F6F3]"
+                            >
+                              <Copy size={12} />
+                            </button>
+                          </div>
+                        )}
+                        <div className="text-[10px] text-[#71857B]">Tautan berlaku 24 jam dan hanya dapat digunakan sekali.</div>
+                      </div>
+                    ) : null}
                     {request.rejectionReason && <div className="mt-1 text-[10px] text-red-700">{request.rejectionReason}</div>}
                   </td>
                 </tr>

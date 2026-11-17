@@ -21,7 +21,7 @@ import { prisma } from "./prisma";
 function isPublicAuthRoute(parts: string[]) {
   return parts[0] === "auth" &&
     parts.length === 2 &&
-    ["demo-login", "register", "login", "logout"].includes(parts[1]);
+    ["activate", "demo-login", "register", "login", "logout"].includes(parts[1]);
 }
 
 async function dispatch(request: NextRequest, parts: string[], user?: AuthUser) {

@@ -1,9 +1,10 @@
 import bcrypt from "bcryptjs";
-import { Role } from "@prisma/client";
+import { EmployeeAccountRequestStatus, Role } from "@prisma/client";
+import jwt from "jsonwebtoken";
 import type { NextRequest } from "next/server";
 import { z } from "zod";
-import { clearSessionCookies, requireAuth, setSessionCookie, type AuthUser } from "../auth";
-import { json, readJson } from "../api-utils";
+import { clearSessionCookies, jwtSecret, requireAuth, setSessionCookie, type AuthUser } from "../auth";
+import { isPrismaError, json, readJson } from "../api-utils";
 import { prisma } from "../prisma";
 
 const demoPhoneByRole: Record<Role, string> = {
@@ -16,6 +17,86 @@ const demoPhoneByRole: Record<Role, string> = {
 
 export async function authRoutes(request: NextRequest, parts: string[], user?: AuthUser) {
   const action = parts[1];
+  if (action === "activate" && request.method === "POST") {
+    const input = z.object({
+      token: z.string().min(1).max(4096),
+      password: z.string().min(12).max(72)
+        .refine((value) => Buffer.byteLength(value, "utf8") <= 72)
+    }).parse(await readJson(request));
+    const secret = jwtSecret();
+    let claims: jwt.JwtPayload;
+    try {
+      const verified = jwt.verify(input.token, secret, {
+        audience: "wellfora-account-activation"
+      });
+      if (typeof verified === "string") {
+        return json({ error: "Tautan aktivasi tidak valid atau sudah kedaluwarsa." }, 400);
+      }
+      claims = verified;
+    } catch {
+      return json({ error: "Tautan aktivasi tidak valid atau sudah kedaluwarsa." }, 400);
+    }
+
+    if (claims.tokenType !== "account-activation" || typeof claims.sub !== "string") {
+      return json({ error: "Tautan aktivasi tidak valid atau sudah kedaluwarsa." }, 400);
+    }
+
+    const passwordHash = await bcrypt.hash(input.password, 12);
+    try {
+      const result = await prisma.$transaction(async (transaction) => {
+        const accountRequest = await transaction.employeeAccountRequest.findUnique({
+          where: { id: claims.sub }
+        });
+        if (!accountRequest || accountRequest.status !== EmployeeAccountRequestStatus.APPROVED) {
+          return { kind: "not_approved" as const };
+        }
+        if (accountRequest.createdUserId) return { kind: "already_activated" as const };
+
+        const email = `phone_${accountRequest.phone.replace(/\D/g, "")}@wellfora.internal`;
+        const existingUser = await transaction.user.findFirst({
+          where: { OR: [{ phone: accountRequest.phone }, { email }] },
+          select: { id: true }
+        });
+        if (existingUser) return { kind: "duplicate" as const };
+
+        const newUser = await transaction.user.create({
+          data: {
+            name: accountRequest.name,
+            email,
+            phone: accountRequest.phone,
+            passwordHash,
+            role: Role.EMPLOYEE,
+            department: accountRequest.department,
+            position: accountRequest.position,
+            isActive: true
+          },
+          select: { id: true }
+        });
+        await transaction.employeeAccountRequest.update({
+          where: { id: accountRequest.id },
+          data: { createdUserId: newUser.id }
+        });
+        return { kind: "activated" as const };
+      });
+
+      if (result.kind === "not_approved") {
+        return json({ error: "Permohonan akun belum disetujui atau tidak ditemukan." }, 409);
+      }
+      if (result.kind === "already_activated") {
+        return json({ error: "Tautan aktivasi ini sudah pernah digunakan." }, 409);
+      }
+      if (result.kind === "duplicate") {
+        return json({ error: "Nomor telepon sudah terdaftar pada akun lain." }, 409);
+      }
+      return json({ message: "Akun berhasil diaktifkan. Silakan masuk dengan password yang baru dibuat." });
+    } catch (error) {
+      if (isPrismaError(error, "P2002")) {
+        return json({ error: "Akun ini sudah diaktifkan atau nomor telepon sudah terdaftar." }, 409);
+      }
+      throw error;
+    }
+  }
+
   if (action === "register" && request.method === "POST") {
     return json({
       error: "Pendaftaran mandiri tidak tersedia. Hubungi HRD perusahaan untuk mengajukan akun."

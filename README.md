@@ -24,7 +24,8 @@ Setiap peran memiliki **URL rute portal mandiri** yang dilindungi secara ketat o
 2. **HRD (`HR_ADMIN`) ➔ Rute: `/dashboard/hrd`**
    - Dashboard verifikasi & approval Surat Izin (*Pending*, *Approved*, *Rejected*).
    - Pengajuan akun karyawan baru dengan data nama, nomor telepon, divisi, dan jabatan untuk ditinjau Superadmin.
-   - Pelacakan status permohonan akun yang diajukan HRD.
+   - Setelah disetujui, HRD dapat membagikan tautan aktivasi sekali pakai yang berlaku 24 jam; karyawan membuat password sendiri.
+   - Pelacakan status permohonan dan aktivasi akun; HRD tidak dapat melihat atau mengubah password karyawan.
    - Catatan resmi verifikasi HRD pada setiap permohonan.
    - Manajemen penanganan keluhan internal & monitoring absensi kesehatan.
    - Laporan metrik kesejahteraan tim kerja.
@@ -66,7 +67,7 @@ Untuk menguji akun yang sudah dibuat:
 - Akun seed memakai nomor `081234567890` (karyawan), `081298765432` (HRD), `081311223344` (psikolog), `081355667788` (legal), atau `081122334455` (superadmin). Password semua akun seed adalah nilai `SEED_DEMO_PASSWORD` yang dipakai saat seeding.
 - Tombol **Akses Instan** hanya tersedia di development.
 - HRD mengajukan data calon karyawan dan divisinya; permohonan harus disetujui Superadmin sebelum akun dapat digunakan.
-- Saat menyetujui permohonan, Superadmin membuat akun ber-role Karyawan dan menetapkan password awal minimal 12 karakter. Password perlu disampaikan kepada karyawan melalui kanal internal perusahaan yang aman.
+- Saat menyetujui permohonan, Superadmin menyetujui pembuatan akun ber-role Karyawan. HRD membagikan tautan aktivasi sekali pakai yang berlaku 24 jam; karyawan menetapkan password minimal 12 karakter sendiri. HRD tidak dapat melihat atau mengubah password.
 - Superadmin tetap dapat membuat akun manual, mengatur nomor telepon/password, serta menentukan role pengguna.
 
 Pendaftaran mandiri dinonaktifkan. Untuk akun karyawan baru, hubungi HRD perusahaan.
@@ -136,8 +137,8 @@ PDF tidak disimpan sebagai lampiran terpisah. Unduh dari kartu permohonan, booki
 
 - `GET /api/health`
 - `POST /api/auth/register` (disabled), `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`
-- `POST /api/auth/demo-login` (development only)
-- `GET|POST /api/account-requests` (HRD: own requests; Superadmin: all requests), `PATCH /api/account-requests/:requestId/decision` (Superadmin)
+- `POST /api/auth/demo-login` (development only), `POST /api/auth/activate`
+- `GET|POST /api/account-requests` (HRD: own requests; Superadmin: all requests), `GET /api/account-requests/:requestId/activation-link` (requesting HRD/Superadmin), `PATCH /api/account-requests/:requestId/decision` (Superadmin)
 - `GET /api/leaves`, `POST /api/leaves`, `PATCH /api/leaves/:id/status`, `GET /api/leaves/summary`
 - `GET /api/counseling/psychologists`, `GET /api/counseling/availability`, `GET|POST /api/counseling/slots`, `DELETE /api/counseling/slots/:id`
 - `GET|POST /api/counseling/bookings`, `PATCH /api/counseling/bookings/:id/status`

@@ -49,7 +49,11 @@ export async function requireAuth(request: NextRequest): Promise<AuthUser> {
     throw new ApiError("Sesi telah kedaluwarsa. Silakan login kembali.", 401);
   }
 
-  if (typeof claims.sub !== "string") {
+  if (
+    claims.aud === "wellfora-account-activation" ||
+    claims.tokenType === "account-activation" ||
+    typeof claims.sub !== "string"
+  ) {
     throw new ApiError("Sesi token tidak valid.", 401);
   }
 

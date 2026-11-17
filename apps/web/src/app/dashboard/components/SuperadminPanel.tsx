@@ -54,7 +54,6 @@ export default function SuperadminPanel() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<EmployeeAccountRequest | null>(null);
-  const [initialPassword, setInitialPassword] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
   const [modalType, setModalType] = useState<"ROLE" | "CREATE" | "LOGIN" | null>(null);
 
@@ -100,10 +99,6 @@ export default function SuperadminPanel() {
 
   async function handleAccountRequestDecision(decision: "APPROVED" | "REJECTED") {
     if (!selectedRequest) return;
-    if (decision === "APPROVED" && initialPassword.length < 12) {
-      alert("Password awal harus minimal 12 karakter.");
-      return;
-    }
     if (decision === "REJECTED" && rejectionReason.trim().length < 5) {
       alert("Alasan penolakan minimal 5 karakter.");
       return;
@@ -116,15 +111,12 @@ export default function SuperadminPanel() {
         {
           method: "PATCH",
           body: JSON.stringify(
-            decision === "APPROVED"
-              ? { decision, password: initialPassword }
-              : { decision, rejectionReason }
+            decision === "APPROVED" ? { decision } : { decision, rejectionReason }
           )
         }
       );
       setMessage(response.message);
       setSelectedRequest(null);
-      setInitialPassword("");
       setRejectionReason("");
       await loadData();
     } catch (err) {
@@ -332,7 +324,11 @@ export default function SuperadminPanel() {
                     <span className={`font-bold px-2 py-0.5 rounded-full text-[10px] ${request.status === "APPROVED" ? "bg-emerald-100 text-emerald-800" : request.status === "REJECTED" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"}`}>
                       {request.status === "PENDING" ? "Menunggu" : request.status === "APPROVED" ? "Disetujui" : "Ditolak"}
                     </span>
-                    {request.createdUser && <div className="mt-1 text-[10px] text-[#3D6953]">Akun: {request.createdUser.name}</div>}
+                    {request.createdUser ? (
+                      <div className="mt-1 text-[10px] text-[#3D6953]">Akun aktif: {request.createdUser.name}</div>
+                    ) : request.status === "APPROVED" ? (
+                      <div className="mt-1 text-[10px] text-[#71857B]">Menunggu aktivasi oleh karyawan.</div>
+                    ) : null}
                     {request.rejectionReason && <div className="mt-1 text-[10px] text-red-700">{request.rejectionReason}</div>}
                   </td>
                   <td className="py-3 px-3 text-right">
@@ -341,7 +337,6 @@ export default function SuperadminPanel() {
                         type="button"
                         onClick={() => {
                           setSelectedRequest(request);
-                          setInitialPassword("");
                           setRejectionReason("");
                         }}
                         className="px-3 py-1.5 rounded-lg bg-[#EAF0EC] hover:bg-[#294D3F] hover:text-white text-[#294D3F] font-bold text-[11px] transition-all"
@@ -719,7 +714,6 @@ export default function SuperadminPanel() {
               type="button"
               onClick={() => {
                 setSelectedRequest(null);
-                setInitialPassword("");
                 setRejectionReason("");
               }}
               className="absolute top-5 right-5 w-8 h-8 rounded-full bg-[#F2F6F3] text-[#556960] hover:bg-[#E2ECE5] flex items-center justify-center"
@@ -745,21 +739,7 @@ export default function SuperadminPanel() {
             )}
 
             <div className="p-3 rounded-xl bg-[#EAF0EC] text-[11px] text-[#294D3F]">
-              Jika disetujui, sistem membuat akun aktif dengan role <strong>Karyawan</strong>. Tetapkan password minimal 12 karakter dan sampaikan melalui kanal internal perusahaan yang aman.
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-[#294D3F] mb-1">Password Awal (wajib saat menyetujui)</label>
-              <input
-                type="password"
-                minLength={12}
-                maxLength={72}
-                value={initialPassword}
-                onChange={(event) => setInitialPassword(event.target.value)}
-                autoComplete="new-password"
-                className="w-full px-3 py-2 rounded-xl border border-[#CBD5CD] bg-white text-xs focus:outline-none focus:border-[#294D3F]"
-              />
-              <p className="text-[10px] text-[#71857B] mt-1">Password tidak ditampilkan kembali setelah akun dibuat.</p>
+              Jika disetujui, HRD dapat membagikan tautan aktivasi kepada karyawan. Karyawan akan membuat password sendiri; password tidak dapat dilihat atau diubah oleh HRD.
             </div>
 
             <div>
@@ -780,7 +760,7 @@ export default function SuperadminPanel() {
                 onClick={() => void handleAccountRequestDecision("APPROVED")}
                 className="py-2.5 rounded-xl bg-emerald-700 text-white font-bold text-xs shadow hover:bg-emerald-800 disabled:opacity-50"
               >
-                {loading ? "Memproses..." : "Setujui & Buat Akun"}
+                {loading ? "Memproses..." : "Setujui Permohonan"}
               </button>
               <button
                 type="button"

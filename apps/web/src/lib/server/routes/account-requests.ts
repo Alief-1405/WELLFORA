@@ -1,8 +1,8 @@
 import { EmployeeAccountRequestStatus, Role } from "@prisma/client";
-import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import type { NextRequest } from "next/server";
 import { z } from "zod";
-import { allowRoles, type AuthUser } from "../auth";
+import { allowRoles, jwtSecret, type AuthUser } from "../auth";
 import { json, isPrismaError, queryObject, readJson } from "../api-utils";
 import { prisma } from "../prisma";
 
@@ -41,6 +41,29 @@ export async function accountRequestRoutes(
       orderBy: { createdAt: "desc" }
     });
     return json({ requests });
+  }
+
+  if (parts.length === 3 && parts[2] === "activation-link" && request.method === "GET") {
+    allowRoles(user, Role.HR_ADMIN, Role.SUPER_ADMIN);
+    const accountRequest = await prisma.employeeAccountRequest.findUnique({
+      where: { id: parts[1] },
+      select: { id: true, requestedById: true, status: true, createdUserId: true }
+    });
+    if (!accountRequest || (user.role === Role.HR_ADMIN && accountRequest.requestedById !== user.id)) {
+      return json({ error: "Permohonan akun tidak ditemukan." }, 404);
+    }
+    if (accountRequest.status !== EmployeeAccountRequestStatus.APPROVED || accountRequest.createdUserId) {
+      return json({ error: "Permohonan ini belum siap untuk aktivasi akun." }, 409);
+    }
+
+    const token = jwt.sign(
+      { tokenType: "account-activation" },
+      jwtSecret(),
+      { subject: accountRequest.id, audience: "wellfora-account-activation", expiresIn: "24h" }
+    );
+    const activationUrl = new URL("/activate-account", request.nextUrl.origin);
+    activationUrl.hash = token;
+    return json({ activationUrl: activationUrl.toString(), expiresInHours: 24 });
   }
 
   if (parts.length === 1 && request.method === "POST") {
@@ -84,20 +107,13 @@ export async function accountRequestRoutes(
   if (parts.length === 3 && parts[2] === "decision" && request.method === "PATCH") {
     allowRoles(user, Role.SUPER_ADMIN);
     const input = z.discriminatedUnion("decision", [
-      z.object({
-        decision: z.literal("APPROVED"),
-        password: z.string().min(12).max(72)
-          .refine((value) => Buffer.byteLength(value, "utf8") <= 72)
-      }),
+      z.object({ decision: z.literal("APPROVED") }),
       z.object({
         decision: z.literal("REJECTED"),
         rejectionReason: z.string().trim().min(5).max(1000)
       })
     ]).parse(await readJson(request));
     const requestId = parts[1];
-    const decision = input.decision === "APPROVED"
-      ? { ...input, passwordHash: await bcrypt.hash(input.password, 12) }
-      : input;
 
     try {
       const result = await prisma.$transaction(async (transaction) => {
@@ -110,7 +126,7 @@ export async function accountRequestRoutes(
         }
 
         const email = `phone_${accountRequest.phone.replace(/\D/g, "")}@wellfora.internal`;
-        if (decision.decision === "APPROVED") {
+        if (input.decision === "APPROVED") {
           const existingUser = await transaction.user.findFirst({
             where: { OR: [{ phone: accountRequest.phone }, { email }] },
             select: { id: true }
@@ -122,35 +138,13 @@ export async function accountRequestRoutes(
         const updated = await transaction.employeeAccountRequest.updateMany({
           where: { id: requestId, status: EmployeeAccountRequestStatus.PENDING },
           data: {
-            status: decision.decision,
+            status: input.decision,
             reviewedById: user.id,
             reviewedAt,
-            rejectionReason: decision.decision === "REJECTED" ? decision.rejectionReason : null
+            rejectionReason: input.decision === "REJECTED" ? input.rejectionReason : null
           }
         });
         if (updated.count === 0) return { kind: "already_decided" as const };
-
-        let createdUserId: string | null = null;
-        if (decision.decision === "APPROVED") {
-          const newUser = await transaction.user.create({
-            data: {
-              name: accountRequest.name,
-              email,
-              phone: accountRequest.phone,
-              passwordHash: decision.passwordHash,
-              role: Role.EMPLOYEE,
-              department: accountRequest.department,
-              position: accountRequest.position,
-              isActive: true
-            },
-            select: { id: true }
-          });
-          createdUserId = newUser.id;
-          await transaction.employeeAccountRequest.update({
-            where: { id: requestId },
-            data: { createdUserId }
-          });
-        }
 
         const reviewedRequest = await transaction.employeeAccountRequest.findUniqueOrThrow({
           where: { id: requestId },
@@ -169,8 +163,8 @@ export async function accountRequestRoutes(
         return json({ error: "Nomor telepon atau email akun sudah terdaftar. Permohonan tetap menunggu peninjauan." }, 409);
       }
       return json({
-        message: decision.decision === "APPROVED"
-          ? "Permohonan disetujui dan akun karyawan berhasil dibuat."
+        message: input.decision === "APPROVED"
+          ? "Permohonan disetujui. HRD dapat membagikan tautan aktivasi kepada karyawan."
           : "Permohonan akun ditolak.",
         request: result.request
       });
