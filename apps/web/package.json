@@ -3,8 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "postinstall": "prisma generate --schema ../api/prisma/schema.prisma",
-    "build": "prisma generate --schema ../api/prisma/schema.prisma && next build",
+    "postinstall": "prisma generate --schema ../api/prisma/schema.prisma --generator webClient",
+    "build": "prisma generate --schema ../api/prisma/schema.prisma --generator webClient && next build",
     "start": "next start",
     "lint": "eslint ."
   },
