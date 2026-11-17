@@ -16,6 +16,7 @@ export default function LoginPage() {
 }
 
 function LoginForm() {
+  const demoLoginAvailable = process.env.NODE_ENV === "development";
   const router = useRouter();
   const searchParams = useSearchParams();
   const [phone, setPhone] = useState("");
@@ -166,41 +167,42 @@ function LoginForm() {
                 </Link>
               </div>
 
-              {process.env.NODE_ENV === "development" && (
-                <div className="p-4 rounded-2xl bg-white border border-[#E2DBD1] shadow-sm space-y-3">
-                  <div className="flex items-center justify-between text-xs font-bold text-[#294D3F]">
-                    <span>AKSES INSTAN 5 PERAN (DEVELOPMENT):</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    {([
-                      { role: "EMPLOYEE" as Role, label: "1. Karyawan", phone: "081234567890" },
-                      { role: "HR_ADMIN" as Role, label: "2. HRD", phone: "081298765432" },
-                      { role: "PSYCHOLOGIST" as Role, label: "3. Psikolog", phone: "081311223344" },
-                      { role: "LEGAL_COUNSEL" as Role, label: "4. Legal Counsel", phone: "081355667788" },
-                    ]).map((item) => (
-                      <button
-                        key={item.role}
-                        type="button"
-                        disabled={loading}
-                        onClick={() => quickRoleLogin(item.role)}
-                        className="p-2 text-left rounded-lg bg-[#F7FAF8] hover:bg-[#EAF0EC] border border-[#DCE4DF] transition-colors"
-                      >
-                        <div className="font-bold text-[#1E392F]">{item.label}</div>
-                        <div className="text-[10px] text-[#5C7167]">{item.phone}</div>
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      disabled={loading}
-                      onClick={() => quickRoleLogin("SUPER_ADMIN")}
-                      className="col-span-2 p-2 text-left rounded-lg bg-[#F7FAF8] hover:bg-[#EAF0EC] border border-[#DCE4DF] transition-colors"
-                    >
-                      <div className="font-bold text-[#1E392F]">5. Super Admin</div>
-                      <div className="text-[10px] text-[#5C7167]">081122334455 · Kelola akun, deaktivasi resign, master data</div>
-                    </button>
-                  </div>
+              <div className="p-4 rounded-2xl bg-white border border-[#E2DBD1] shadow-sm space-y-3">
+                <div className="flex items-center justify-between text-xs font-bold text-[#294D3F]">
+                  <span>AKSES INSTAN 5 PERAN (DEVELOPMENT):</span>
+                  {!demoLoginAvailable && (
+                    <span className="text-[10px] font-normal text-[#6F8278]">Tidak tersedia di production</span>
+                  )}
                 </div>
-              )}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {([
+                    { role: "EMPLOYEE" as Role, label: "1. Karyawan", phone: "081234567890" },
+                    { role: "HR_ADMIN" as Role, label: "2. HRD", phone: "081298765432" },
+                    { role: "PSYCHOLOGIST" as Role, label: "3. Psikolog", phone: "081311223344" },
+                    { role: "LEGAL_COUNSEL" as Role, label: "4. Legal Counsel", phone: "081355667788" },
+                  ]).map((item) => (
+                    <button
+                      key={item.role}
+                      type="button"
+                      disabled={loading || !demoLoginAvailable}
+                      onClick={() => quickRoleLogin(item.role)}
+                      className="p-2 text-left rounded-lg bg-[#F7FAF8] hover:bg-[#EAF0EC] border border-[#DCE4DF] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <div className="font-bold text-[#1E392F]">{item.label}</div>
+                      <div className="text-[10px] text-[#5C7167]">{item.phone}</div>
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    disabled={loading || !demoLoginAvailable}
+                    onClick={() => quickRoleLogin("SUPER_ADMIN")}
+                    className="col-span-2 p-2 text-left rounded-lg bg-[#F7FAF8] hover:bg-[#EAF0EC] border border-[#DCE4DF] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <div className="font-bold text-[#1E392F]">5. Super Admin</div>
+                    <div className="text-[10px] text-[#5C7167]">081122334455 · Kelola akun, deaktivasi resign, master data</div>
+                  </button>
+                </div>
+              </div>
           </>
 
         </div>

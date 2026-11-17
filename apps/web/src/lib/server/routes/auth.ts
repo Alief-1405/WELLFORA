@@ -15,6 +15,23 @@ const demoPhoneByRole: Record<Role, string> = {
   SUPER_ADMIN: "081122334455"
 };
 
+function phoneLoginCandidates(phone: string) {
+  const trimmedPhone = phone.trim();
+  const digits = trimmedPhone.replace(/\D/g, "");
+  const nationalNumber = digits.startsWith("62") ? `0${digits.slice(2)}` : digits;
+  const internationalNumber = nationalNumber.startsWith("0")
+    ? `62${nationalNumber.slice(1)}`
+    : nationalNumber;
+
+  return [...new Set([
+    trimmedPhone,
+    digits,
+    nationalNumber,
+    internationalNumber,
+    `+${internationalNumber}`
+  ])];
+}
+
 export async function authRoutes(request: NextRequest, parts: string[], user?: AuthUser) {
   const action = parts[1];
   if (action === "activate" && request.method === "POST") {
@@ -137,8 +154,9 @@ export async function authRoutes(request: NextRequest, parts: string[], user?: A
       password: z.string().min(1).max(72).refine((value) => Buffer.byteLength(value, "utf8") <= 72)
     }).parse(await readJson(request));
 
-    const loginUser = await prisma.user.findUnique({
-      where: { phone: input.phone },
+    const loginUsers = await prisma.user.findMany({
+      where: { phone: { in: phoneLoginCandidates(input.phone) } },
+      take: 2,
       select: {
         id: true,
         email: true,
@@ -151,7 +169,8 @@ export async function authRoutes(request: NextRequest, parts: string[], user?: A
         passwordHash: true
       }
     });
-    if (!loginUser) {
+    const [loginUser] = loginUsers;
+    if (loginUsers.length !== 1 || !loginUser) {
       return json({ error: "Nomor telepon atau password tidak sesuai." }, 401);
     }
     if (!loginUser.isActive) {
