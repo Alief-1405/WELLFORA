@@ -77,6 +77,12 @@ type Complaint = {
   createdAt: string;
 };
 
+type LegalStaff = {
+  id: string;
+  name: string;
+  department?: string | null;
+};
+
 type ChatMessage = {
   role: "user" | "atma";
   text: string;
@@ -127,8 +133,10 @@ export default function EmployeePanel({ user, initialTab = "overview" }: Props) 
 
   // Complaints state
   const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [legalStaff, setLegalStaff] = useState<LegalStaff[]>([]);
   const [complaintsSubTab, setComplaintsSubTab] = useState<"form" | "knowledge">("form");
   const [compCategory, setCompCategory] = useState<Complaint["category"]>("PELANGGARAN_HUKUM_KERJA");
+  const [compCounselId, setCompCounselId] = useState("");
   const [compTitle, setCompTitle] = useState("");
   const [compDesc, setCompDesc] = useState("");
   const [compDate, setCompDate] = useState("");
@@ -160,14 +168,16 @@ export default function EmployeePanel({ user, initialTab = "overview" }: Props) 
       apiRequest<{ leaves: LeaveRequest[] }>("/leaves"),
       apiRequest<{ psychologists: Psychologist[] }>("/counseling/psychologists"),
       apiRequest<{ bookings: Booking[] }>("/counseling/bookings"),
-      apiRequest<{ complaints: Complaint[] }>("/legal/complaints")
+      apiRequest<{ complaints: Complaint[] }>("/legal/complaints"),
+      apiRequest<{ legalStaff: LegalStaff[] }>("/legal/staff")
     ])
-      .then(([lRes, pRes, bRes, cRes]) => {
+      .then(([lRes, pRes, bRes, cRes, legalRes]) => {
         if (cancelled) return;
         setLeaves(lRes.leaves);
         setPsychologists(pRes.psychologists);
         setBookings(bRes.bookings);
         setComplaints(cRes.complaints);
+        setLegalStaff(legalRes.legalStaff);
         setLoadError("");
       })
       .catch((err: unknown) => {
@@ -313,6 +323,7 @@ export default function EmployeePanel({ user, initialTab = "overview" }: Props) 
         method: "POST",
         body: JSON.stringify({
           category: compCategory,
+          counselId: compCounselId || undefined,
           title: compTitle,
           description: compDesc,
           incidentDate: new Date(compDate).toISOString(),
@@ -1243,6 +1254,25 @@ export default function EmployeePanel({ user, initialTab = "overview" }: Props) 
               </div>
 
               <div>
+                <label className="block font-bold text-[#294D3F] mb-1">Petugas Legal</label>
+                <select
+                  value={compCounselId}
+                  onChange={(e) => setCompCounselId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-[#CBD5CD] bg-white focus:outline-none focus:border-[#294D3F]"
+                >
+                  <option value="">Ditugaskan otomatis oleh tim hukum</option>
+                  {legalStaff.map((staff) => (
+                    <option key={staff.id} value={staff.id}>
+                      {staff.name}{staff.department ? ` · ${staff.department}` : ""}
+                    </option>
+                  ))}
+                </select>
+                {legalStaff.length === 0 && (
+                  <p className="mt-1 text-[10px] text-[#71857B]">Belum ada petugas legal aktif; laporan akan ditugaskan otomatis jika tersedia.</p>
+                )}
+              </div>
+
+              <div>
                 <label className="block font-bold text-[#294D3F] mb-1">Judul Laporan</label>
                 <input
                   type="text"
@@ -1282,6 +1312,7 @@ export default function EmployeePanel({ user, initialTab = "overview" }: Props) 
                 <textarea
                   rows={4}
                   required
+                  minLength={5}
                   value={compDesc}
                   onChange={(e) => setCompDesc(e.target.value)}
                   placeholder="Jelaskan secara runtut apa yang terjadi, siapa pihak terkait, dan dampaknya..."

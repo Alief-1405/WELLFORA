@@ -11,11 +11,26 @@ legalRouter.use(requireAuth);
 const createComplaintSchema = z.object({
   category: z.nativeEnum(LegalCategory),
   title: z.string().trim().min(5).max(255),
-  description: z.string().trim().min(10).max(3000),
+  description: z.string().trim().min(5).max(3000),
   incidentDate: z.string().datetime(),
+  counselId: z.string().min(1).optional(),
   location: z.string().trim().max(255).optional(),
   isAnonymous: z.boolean().default(false),
   evidenceInfo: z.string().trim().max(1000).optional()
+});
+
+legalRouter.get("/staff", allowRoles(Role.EMPLOYEE), async (_req, res, next) => {
+  try {
+    const legalStaff = await prisma.user.findMany({
+      where: { role: Role.LEGAL_COUNSEL, isActive: true },
+      select: { id: true, name: true, department: true },
+      orderBy: { name: "asc" }
+    });
+
+    return res.json({ legalStaff });
+  } catch (error) {
+    next(error);
+  }
 });
 
 // Employee submits a legal complaint
@@ -31,10 +46,20 @@ legalRouter.post("/complaints", allowRoles(Role.EMPLOYEE), async (req: AuthReque
     const year = new Date().getFullYear();
     const ticketNumber = `WLF-LGL-${year}-${randomBytes(8).toString("hex").toUpperCase()}`;
 
-    // Auto assign to available legal counsel if any
-    const counsel = await prisma.user.findFirst({
+    const selectedCounsel = input.counselId
+      ? await prisma.user.findFirst({
+          where: { id: input.counselId, role: Role.LEGAL_COUNSEL, isActive: true },
+          select: { id: true }
+        })
+      : null;
+    if (input.counselId && !selectedCounsel) {
+      return res.status(400).json({ error: "Petugas legal yang dipilih tidak tersedia." });
+    }
+
+    const counsel = selectedCounsel ?? await prisma.user.findFirst({
       where: { role: Role.LEGAL_COUNSEL, isActive: true },
-      select: { id: true }
+      select: { id: true },
+      orderBy: { name: "asc" }
     });
 
     const complaint = await prisma.legalComplaint.create({

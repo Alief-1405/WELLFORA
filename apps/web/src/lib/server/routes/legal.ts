@@ -9,8 +9,9 @@ import { prisma } from "../prisma";
 const createComplaintSchema = z.object({
   category: z.nativeEnum(LegalCategory),
   title: z.string().trim().min(5).max(255),
-  description: z.string().trim().min(10).max(3000),
+  description: z.string().trim().min(5).max(3000),
   incidentDate: z.string().datetime(),
+  counselId: z.string().min(1).optional(),
   location: z.string().trim().max(255).optional(),
   isAnonymous: z.boolean().default(false),
   evidenceInfo: z.string().trim().max(1000).optional()
@@ -23,6 +24,16 @@ function omitKeys<T extends object, K extends keyof T>(value: T, keys: readonly 
 }
 
 export async function legalRoutes(request: NextRequest, parts: string[], user: AuthUser) {
+  if (parts[1] === "staff" && parts.length === 2 && request.method === "GET") {
+    allowRoles(user, Role.EMPLOYEE);
+    const legalStaff = await prisma.user.findMany({
+      where: { role: Role.LEGAL_COUNSEL, isActive: true },
+      select: { id: true, name: true, department: true },
+      orderBy: { name: "asc" }
+    });
+    return json({ legalStaff });
+  }
+
   if (parts[1] === "summary" && parts.length === 2 && request.method === "GET") {
     allowRoles(user, Role.LEGAL_COUNSEL);
     const [total, submitted, inReview, investigation, mediation, resolved, byCategory] = await Promise.all([
@@ -55,9 +66,20 @@ export async function legalRoutes(request: NextRequest, parts: string[], user: A
     if (incidentDate > new Date()) return json({ error: "Tanggal kejadian tidak boleh di masa depan." }, 400);
     const year = new Date().getFullYear();
     const ticketNumber = `WLF-LGL-${year}-${randomBytes(8).toString("hex").toUpperCase()}`;
-    const counsel = await prisma.user.findFirst({
+    const selectedCounsel = input.counselId
+      ? await prisma.user.findFirst({
+          where: { id: input.counselId, role: Role.LEGAL_COUNSEL, isActive: true },
+          select: { id: true }
+        })
+      : null;
+    if (input.counselId && !selectedCounsel) {
+      return json({ error: "Petugas legal yang dipilih tidak tersedia." }, 400);
+    }
+
+    const counsel = selectedCounsel ?? await prisma.user.findFirst({
       where: { role: Role.LEGAL_COUNSEL, isActive: true },
-      select: { id: true }
+      select: { id: true },
+      orderBy: { name: "asc" }
     });
     const complaint = await prisma.legalComplaint.create({
       data: {
